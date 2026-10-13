@@ -19,7 +19,7 @@ command -v magick >/dev/null 2>&1 && conv="magick"
 
 if [ "$color" = 1 ]; then
   command -v vtracer >/dev/null 2>&1 || { echo "color tracing needs vtracer: pip install --user vtracer" >&2; exit 1; }
-  exec vtracer "$in" "$out" --mode RGBA --palette 10 --filter luma-key --luma-thresholding 0.45 --color-bleed 0.3
+  exec vtracer --input "$in" --output "$out" --colormode color --mode spline
 fi
 # black-only path (default)
 tmp="$(mktemp --suffix=.pgm)"

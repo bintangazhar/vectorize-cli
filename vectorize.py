@@ -18,10 +18,8 @@ def vectorize(inp: str, out: str | None = None, color: bool = False) -> str:
             print("color tracing needs vtracer: pip install --user vtracer",
                   file=sys.stderr); sys.exit(1)
         subprocess.run([
-            "vtracer", str(inp), out,
-            "--mode", "RGBA", "--palette", "10",
-            "--filter", "luma-key", "--luma-thresholding", "0.45",
-            "--color-bleed", "0.3",
+            "vtracer", "--input", str(inp), "--output", out,
+            "--colormode", "color", "--mode", "spline",
         ], check=True)
         print(f"→ {out}")
         return out
