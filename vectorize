@@ -1,11 +1,12 @@
 #!/bin/sh
 set -eu
-# vectorize ─ PNG → SVG. Default: black vector (potrace). -c/--color: color layers (vtracer).
+# vectorize ─ raster → SVG. Default: black vector (potrace). -c/--color: color layers (vtracer).
 # Usage: vectorize [-c|--color] INPUT.png [OUTPUT.svg]
 color=0
 while [ $# -gt 0 ]; do
   case "$1" in
     -c|--color) color=1; shift;;
+    -h|--help)  printf 'Usage: vectorize [-c|--color] INPUT.png [OUTPUT.svg]\n'; exit 0;;
     *) break;;
   esac
 done

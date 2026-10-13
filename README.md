@@ -1,6 +1,6 @@
 # vectorize-cli
 
-PNG → SVG from the command line.
+raster → SVG from the command line.
 
 - `vectorize` — POSIX shell script (default: black vector via potrace)
 - `vectorize.py` — Python variant with the same flags
@@ -11,7 +11,7 @@ PNG → SVG from the command line.
 
 | Tool | Purpose |
 |---|---|
-| ImageMagick (`magick` v7, `convert` fallback) | PNG preprocessing |
+| ImageMagick (`magick` v7, `convert` fallback) | raster preprocessing |
 | potrace | black-and-white tracing |
 | vtracer *(optional, color only)* | per-layer color tracing — Arch AUR: `vtracer-bin` |
 

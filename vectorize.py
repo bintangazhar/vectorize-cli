@@ -39,7 +39,7 @@ def vectorize(inp: str, out: str | None = None, color: bool = False) -> str:
     return out
 
 if __name__ == "__main__":
-    ap = argparse.ArgumentParser(description="Vectorize PNG → SVG")
+    ap = argparse.ArgumentParser(description="Vectorize raster → SVG")
     ap.add_argument("input", help="Input PNG file")
     ap.add_argument("-o", "--output", help="Output SVG path")
     ap.add_argument("-c", "--color", action="store_true",
