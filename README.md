@@ -1,69 +1,71 @@
-# Vectorize Image Shell Script
+# vectorize-cli
 
-Turn PNG logos into clean SVG vectors from the command line.
+PNG → SVG from the command line.
 
-- `vectorize` — POSIX shell script
-- `vectorize.py` — Python fallback with the same flags
-- `install/` — Linux / macOS / Windows installers
-- `-c` flag — color tracing (requires `vtracer`)
+- `vectorize` — POSIX shell script (default: black vector via potrace)
+- `vectorize.py` — Python variant with the same flags
+- `install.sh` — one installer that auto-detects Linux/macOS
+- `-c` / `--color` — color tracing (requires `vtracer` / `paru -S vtracer-bin`)
 
 ## Requirements
 
 | Tool | Purpose |
 |---|---|
-| **ImageMagick** (`magick` v7, `convert` fallback) | PNG preprocessing |
-| **potrace** | black-and-white tracing |
-| **vtracer** *(optional, color only)* | per-layer color tracing |
+| ImageMagick (`magick` v7, `convert` fallback) | PNG preprocessing |
+| potrace | black-and-white tracing |
+| vtracer *(optional, color only)* | per-layer color tracing — Arch AUR: `vtracer-bin` |
 
 ## Install
 
-### Linux
+Linux or macOS — run from the project directory:
+
 ```sh
-sh install/linux.sh
+./install.sh
 ```
 
-### macOS
-```sh
-bash install/macos.sh
-```
+`install.sh` detects your environment:
+- **macOS** → Homebrew (`brew install imagemagick potrace`) + vtracer via pip
+- **Debian/Ubuntu** → `apt` for ImageMagick + potrace, vtracer via pip
+- **Arch / derivatives** → `pacman` for ImageMagick + potrace, and `paru -S vtracer-bin` for vtracer
 
-### Windows (PowerShell)
-```powershell
-.\install\windows.ps1
-```
-Then ensure ImageMagick, potrace, and `vtracer` are on `%PATH%`.
+> On Arch, `vtracer` lives only in the AUR (not official repos), so `pacman -S vtracer` gives `target not found`. `install.sh` uses `paru -S vtracer-bin` automatically.  
+> Color tracing alone: `paru -S vtracer-bin`
 
-Install vtracer alone:
+Install vtracer standalone (non-Arch):
 ```sh
-pip install --user vtracer
+pip install --user vtracer   # avoids PEP 668 on most distros
+# if still blocked:
+pip install --user --break-system-packages vtracer
 ```
-(`--user` sidesteps PEP 668 restrictions.)
 
 ## Usage
 
 ```sh
-vectorize logo.png            # black vector -> logo.svg
-vectorize logo.png out.svg    # custom output
-vectorize -c logo.png         # color vector (needs vtracer)
+vectorize logo.png              # black vector  -> logo.svg
+vectorize logo.png out.svg      # custom output name
+vectorize -c logo.png           # color vector  -> logo.svg  (needs vtracer)
+```
+
+Both `vectorize` (shell) and `vectorize.py` support the same flags. Put the script on your `PATH`:
+```sh
+cp vectorize ~/.local/bin/ && chmod +x ~/.local/bin/vectorize
 ```
 
 ## Detail retention (e.g. shield interiors)
 
-The default black path binarizes grayscale at a single threshold, so fine/stroke
-and mid-tone edges can vanish. If detail drops out:
+The black path (`potrace`) binarizes the grayscale image at a single threshold, so fine/thin strokes can vanish — notably interior shield lines. Two options:
 
+**Option A — sharpen the black path:**
 ```sh
-# Sharper binarization + lower turd floor + fill-rule that keeps interior strokes
 magick logo.png -flatten -grayscale Rec709Luminance -threshold 35% ppm:- \
   | potrace -s --turd-size 2 --turnpolicy=minor -o logo.svg
 ```
+- `-threshold 35%` (vs default 50%) keeps thinner strokes black
+- `--turd-size 2` keeps shapes down to 2 px (default 4 eats small strokes)
+- `--turnpolicy=minor` fills the smaller side of a boundary — preserves interior detail
 
-- `-threshold 35%` — lower than default 50% keeps thinner strokes black
-- `--turd-size 2` — keep shapes down to 2 px (default 4 eats small strokes)
-- `--turnpolicy=minor` — fill the smaller side of a boundary (preserves interior detail)
-
-Color mode (`-c`) recovers this structurally — each color/luma region becomes a
-layer, so interior strokes survive regardless of a single threshold.
+**Option B — color path (`-c`):**
+Color tracing via vtracer keeps each color/luma region as a separate layer, so interior shield strokes survive inherently — no threshold tuning needed.
 
 ## License
 
