@@ -1,0 +1,8 @@
+# Inputs/outputs
+*.png
+*.svg
+*.pgm
+
+# Python
+__pycache__/
+*.pyc

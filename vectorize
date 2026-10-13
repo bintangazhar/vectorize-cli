@@ -1,0 +1,29 @@
+#!/bin/sh
+set -eu
+# vectorize ─ PNG → SVG. Default: black vector (potrace). -c/--color: color layers (vtracer).
+# Usage: vectorize [-c|--color] INPUT.png [OUTPUT.svg]
+color=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -c|--color) color=1; shift;;
+    *) break;;
+  esac
+done
+in="${1:?usage: vectorize [-c] INPUT.png [OUTPUT.svg]}"
+out="${2:-${in%.*}.svg}"
+[ -n "$out" ] || out="out.svg"
+
+command -v potrace >/dev/null 2>&1 || { echo "install potrace + imagemagick (see install/)" >&2; exit 1; }
+conv="convert"
+command -v magick >/dev/null 2>&1 && conv="magick"
+
+if [ "$color" = 1 ]; then
+  command -v vtracer >/dev/null 2>&1 || { echo "color tracing needs vtracer: pip install --user vtracer" >&2; exit 1; }
+  exec vtracer "$in" "$out" --mode RGBA --palette 10 --filter luma-key --luma-thresholding 0.45 --color-bleed 0.3
+fi
+# black-only path (default)
+tmp="$(mktemp --suffix=.pgm)"
+trap 'rm -f "$tmp"' EXIT
+"$conv" "$in" -flatten -grayscale Rec709Luminance -threshold 50% "$tmp"
+potrace "$tmp" -s -o "$out"
+echo "→ $out"
