@@ -9,5 +9,12 @@ else
   echo "Unsupported package manager. Install ImageMagick + potrace manually." >&2
   exit 1
 fi
-pip install --user vtracer   # --user avoids PEP 668; needed for -c color mode
+# vtracer (color tracing) — only in AUR, not official repos.
+if command -v paru >/dev/null 2>&1; then
+  paru -S --noconfirm vtracer-bin || paru -S --noconfirm vtracer
+elif command -v yay >/dev/null 2>&1; then
+  yay -S --noconfirm vtracer-bin || yay -S --noconfirm vtracer
+else
+  pip install --user vtracer || pip install --break-system-packages vtracer
+fi
 echo "Done. Usage: vectorize image.png   or   vectorize -c image.png"
