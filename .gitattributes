@@ -1,0 +1,3 @@
+# Batch files must keep their CRLF bytes as-is: cmd.exe misbehaves with LF-only
+# scripts on real Windows, and users often grab a plain zip of this repo.
+*.bat -text

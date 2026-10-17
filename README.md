@@ -3,10 +3,11 @@
 raster → SVG from the command line. Single PNG in, SVG out. One tool, three platforms.
 
 - `vectorize` — POSIX shell script (default: black vector via **potrace**)
-- `vectorize.ps1` — native PowerShell port (PS 5.1 / 7, Windows) → `windows/vectorize.ps1`
+- `vectorize` — POSIX shell script (default: black vector via **potrace**)
+- `vectorize.bat` — pure Windows batch port (no Execution Policy issues) → `windows/vectorize.bat`
 - `vectorize.py` — Python variant with the same flags
 - `install.sh` — Linux/macOS installer
-- `install-vectorize.ps1` — Windows installer (user- or system-wide) → `windows/install-vectorize.ps1`
+- `install-vectorize.bat` — Windows installer (user scope, `--deps` auto-bootstrap) → `windows/install-vectorize.bat`
 
 Repository layout:
 
@@ -15,8 +16,8 @@ install.sh              # Linux/macOS installer
 vectorize               # POSIX shell script (black-path entry point)
 vectorize.py
 windows/
-  install-vectorize.ps1 # Windows installer (uses $PSScriptRoot; run from here)
-  vectorize.ps1         # PowerShell port
+  install-vectorize.bat # Windows installer (run from this folder)
+  vectorize.bat         # Windows port (pure batch, CRLF line endings)
 ```
 
 Flags (all variants):
@@ -45,9 +46,15 @@ Run from the project directory:
 
 `install.sh` auto-detects the environment:
 
-- **macOS** → Homebrew (`brew install imagemagick potrace`) + vtracer via `pip`
-- **Debian/Ubuntu** → `apt` for ImageMagick + potrace, vtracer via `pip`
-- **Arch / derivatives** → `pacman` for ImageMagick + potrace, and `paru -S vtracer-bin` for vtracer (the AUR package; `pacman -S vtracer` is "target not found")
+- **Installs the CLI itself** to `~/.local/bin/vectorize` (creates the folder, `chmod +x`; prints a PATH hint if the folder isn't on PATH yet — e.g. macOS doesn't have `~/.local/bin` on PATH by default)
+- **Installs the runtime binaries**: ImageMagick + potrace via `brew` (apple Silicon/Intel), `apt` / `dnf` / `pacman` on Debian/Ubuntu, Fedora, Arch
+- **vtracer** via `pip` (+ AUR `vtracer-bin` via `paru`/`yay` on Arch); failures here are warnings, not fatal — vtracer is only needed for `-c`
+- Handles PEP 668 automatically (retries with `--break-system-packages` on Debian 12+/Fedora)
+- macOS → Homebrew (`brew install imagemagick potrace`) + vtracer via `pip`
+- Debian/Ubuntu → `apt` for ImageMagick + potrace, vtracer via `pip`
+- Arch / derivatives → `pacman` for ImageMagick + potrace, and `paru -S vtracer-bin` for vtracer (the AUR package; `pacman -S vtracer` is "target not found")
+
+Note: `install.sh` must be run from the repo folder (`./install.sh`); it resolves its own location before copying.
 
 Install vtracer standalone (non-Arch):
 
@@ -58,45 +65,55 @@ pip install --user --break-system-packages vtracer # if PEP 668 blocks you
 
 ### Windows
 
-Use **PowerShell 5.1 or 7** (works in Windows PowerShell, PowerShell 7, and Windows Terminal). From the project directory:
+Everything is plain **`.bat`** (cmd batch), so Windows' script execution policy / digital-signing restrictions never apply — the files run in cmd, PowerShell, and Windows Terminal alike. From the project directory:
 
-```powershell
-# User scope — no admin required
-.\install-vectorize.ps1
+```bat
+:: User scope — no admin required. Installs for the current user.
+.\install-vectorize.bat
 
-# Also bootstrap ImageMagick via winget; prints canonical commands for potrace/vtracer if missing
-.\install-vectorize.ps1 -InstallDeps
+:: Also bootstrap dependencies automatically:
+::   ImageMagick + potrace via winget, vtracer via pip
+.\install-vectorize.bat --deps
 
-# All users — run THIS shell as Administrator
-.\install-vectorize.ps1 -Scope system
+:: All users — run THIS terminal as Administrator
+.\install-vectorize.bat --system
 ```
 
 What it does:
 
-1. Copies `vectorize.ps1` to `%LOCALAPPDATA%\Microsoft\WindowsApps` (already on user `PATH` on modern Windows).
-2. Writes a `vectorize.bat` shim that prefers `pwsh` and falls back to `powershell`:
-   ```bat
-   @echo off
-   set "PSCMD=pwsh"
-   where pwsh >nul 2>&1 || set "PSCMD=powershell"
-   %PSCMD% -NoProfile -ExecutionPolicy Bypass -File "%~dp0vectorize.ps1" %*
+1. Copies `vectorize.bat` to `%LOCALAPPDATA%\Microsoft\WindowsApps` — already on the user `PATH` on Windows 10/11, so no PATH edit is needed. If that folder is missing, it falls back to `%LOCALAPPDATA%\Programs\Vectorize` and adds it to the user PATH via the registry.
+2. Registers a one-line `vectorize` command in the PowerShell profiles — Windows PowerShell 5.1 and PowerShell 7 (`pwsh`) when installed — the way bash installers append to `~/.bashrc`. It queries each shell's real `$PROFILE` (handles OneDrive-redirected Documents), skips if a shim already exists, and appends:
+
+   ```powershell
+   # >>> vectorize shim >>>
+   $Global:VectorizeShim = 'C:\Users\you\AppData\Local\Microsoft\WindowsApps\vectorize.bat'
+   function vectorize {
+       & $Global:VectorizeShim @args
+   }
+   # <<< vectorize shim <<<
    ```
-3. Adds the install dir to the right `PATH` only if missing (idempotent).
+
+   So `vectorize logo.png` works in PowerShell exactly like in bash — no `.\`, no full path, independent of PATH staleness.
+3. With `--deps`: installs missing dependencies via `winget` (ImageMagick, potrace) and `pip` (vtracer); prints manual instructions if `winget`/`pip` are unavailable.
 4. Runs a self-test (`vectorize -h`).
+
+Open a **new terminal** after installing; in an already-open PowerShell you can enable the command right away with `. $PROFILE`. Under strict execution policies (Restricted/AllSigned) profiles may not load — `vectorize` then still resolves via PATH in new terminals.
+
+Uninstall later: delete the installed `vectorize.bat` (locations in step 1, or `%ProgramFiles%\Vectorize` for `--system`) and remove the `vectorize shim` block from each PowerShell profile.
+
+> Why batch and not PowerShell? `.ps1` scripts downloaded from the internet are blocked by Windows' default execution policy ("... is not digitally signed") — exactly what happened to the previous `vectorize.ps1`. Batch files are unaffected.
 
 Install dependencies manually if you prefer:
 
-```powershell
+```bat
 winget install --id ImageMagick.ImageMagick -e --accept-source-agreements --accept-package-agreements
 winget install Potrace.Potrace -e
 pip install --user vtracer
 ```
 
-> A `.ps1` can't be run as `vectorize` directly — `.PS1` isn't in `PATHEXT`, and PowerShell won't launch a bare-name script from `PATH`. The `.bat` shim is what makes `vectorize` resolve in cmd, PowerShell, and Windows Terminal alike.
-
 ## Usage
 
-Identical across shells; only the leading `.\`/`-File` prefix differs.
+Identical across shells; only the leading `.\` differs on Windows.
 
 ```sh
 # Linux / macOS
@@ -105,11 +122,12 @@ vectorize logo.png out.svg      # custom output name
 vectorize -c logo.png           # color vector  -> logo.svg  (needs vtracer)
 ```
 
-```powershell
-# Windows
-vectorize logo.png              # black vector  -> logo.svg
-vectorize logo.png out.svg      # custom output name
-vectorize -c logo.png           # color vector  -> logo.svg  (needs vtracer)
+```bat
+:: Windows — after installing; in a terminal that started before the install
+:: you can also run the file directly: .\<repo path>\windows\vectorize.bat
+vectorize logo.png              :: black vector  -> logo.svg
+vectorize logo.png out.svg      :: custom output name
+vectorize -c logo.png           :: color vector  -> logo.svg  (needs vtracer)
 ```
 
 Put any variant on your `PATH` manually (Linux/macOS example):
