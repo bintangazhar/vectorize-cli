@@ -82,4 +82,5 @@ install_vtracer() {
 
 install_binaries
 install_vtracer
-echo "Done. vectorize image.png | vectorize -c image.png"
+cp vectorize ~/.local/bin/
+echo "Done."
